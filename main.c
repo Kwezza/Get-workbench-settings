@@ -6,21 +6,7 @@
 #include <proto/exec.h>
 #include <stdio.h>
 #include <prefs/workbench.h> 
-
-/*
- * This program reads the Workbench preferences file from the Amiga's 
- * "ENV:sys" directory and extracts various Workbench settings into a 
- * user-defined structure. The settings include borderless mode, emboss 
- * rectangle size, maximum name length, new icons support, color icon support, 
- * and optional extended settings like disabling the title bar and volume gauge.
- * 
- * The program opens the Workbench preferences file, parses the IFF (Interchange 
- * File Format) content to locate the 'WBNC' (Workbench New Configuration) chunk, 
- * and reads the relevant settings. It then prints these settings to the console.
- * 
- * This utility simplifies access to Workbench settings, avoiding the need to 
- * understand the underlying format of the settings stored on the Amiga.
- */
+#include <string.h>  // Include for memset
 
 /* Path to Workbench preferences file */
 #define PREFS_FILE "ENV:sys/Workbench.prefs"
@@ -36,6 +22,17 @@ struct WorkbenchSettings {
     BOOL disableVolumeGauge;
 };
 
+/* Function to initialize settings with default values */
+void InitializeDefaultSettings(struct WorkbenchSettings *settings) {
+    settings->borderless = FALSE;  // Borderless: No
+    settings->embossRectangleSize = 3;  // Emboss Rectangle Size: 3
+    settings->maxNameLength = 25;  // Max Name Length: 25
+    settings->newIconsSupport = TRUE;  // New Icons Support: Yes
+    settings->colorIconSupport = TRUE;  // Color Icon Support: Yes
+    settings->disableTitleBar = FALSE;  // Disable Title Bar: No
+    settings->disableVolumeGauge = FALSE;  // Disable Volume Gauge: No
+}
+
 /* Function to read and extract Workbench settings */
 BOOL ReadWorkbenchSettings(BPTR file, struct WorkbenchSettings *settings) {
     BOOL result = FALSE;
@@ -44,6 +41,14 @@ BOOL ReadWorkbenchSettings(BPTR file, struct WorkbenchSettings *settings) {
     struct WorkbenchPrefs *prefs = NULL;
     struct WorkbenchExtendedPrefs *extPrefs = NULL;
     UBYTE *chunkData;
+
+    /* Initialize with default settings */
+    InitializeDefaultSettings(settings);
+
+    /* Check if file is valid before reading */
+    if (file == 0) {
+        return FALSE;
+    }
 
     /* Read the FORM header (12 bytes: 'FORM', size, 'PREF') */
     if (Read(file, buffer, 12) == 12) {
@@ -97,25 +102,32 @@ int main() {
     struct WorkbenchSettings settings;
     BPTR file;
 
+    /* Clear the structure to ensure no garbage values */
+    memset(&settings, 0, sizeof(struct WorkbenchSettings));
+
     printf("Opening Workbench preferences file: %s\n", PREFS_FILE);
 
     file = Open(PREFS_FILE, MODE_OLDFILE);
+    if (ReadWorkbenchSettings(file, &settings)) {
+        printf("Settings loaded from preferences file.\n");
+    } else {
+        printf("Failed to read Workbench settings. Using default settings.\n");
+    }
+    
     if (file) {
-        if (ReadWorkbenchSettings(file, &settings)) {
-            printf("Borderless: %s\n", settings.borderless ? "Yes" : "No");
-            printf("Emboss Rectangle Size: %ld\n", settings.embossRectangleSize);
-            printf("Max Name Length: %ld\n", settings.maxNameLength);
-            printf("New Icons Support: %s\n", settings.newIconsSupport ? "Yes" : "No");
-            printf("Color Icon Support: %s\n", settings.colorIconSupport ? "Yes" : "No");
-            printf("Disable Title Bar: %s\n", settings.disableTitleBar ? "Yes" : "No");
-            printf("Disable Volume Gauge: %s\n", settings.disableVolumeGauge ? "Yes" : "No");
-        } else {
-            printf("Failed to read Workbench settings.\n");
-        }
         Close(file);
     } else {
         printf("Failed to open file: %s\n", PREFS_FILE);
     }
+
+    /* Print the settings */
+    printf("Borderless: %s\n", settings.borderless ? "Yes" : "No");
+    printf("Emboss Rectangle Size: %ld\n", settings.embossRectangleSize);
+    printf("Max Name Length: %ld\n", settings.maxNameLength);
+    printf("New Icons Support: %s\n", settings.newIconsSupport ? "Yes" : "No");
+    printf("Color Icon Support: %s\n", settings.colorIconSupport ? "Yes" : "No");
+    printf("Disable Title Bar: %s\n", settings.disableTitleBar ? "Yes" : "No");
+    printf("Disable Volume Gauge: %s\n", settings.disableVolumeGauge ? "Yes" : "No");
 
     return 0;
 }
